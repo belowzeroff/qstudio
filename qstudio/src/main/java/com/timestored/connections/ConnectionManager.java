@@ -52,7 +52,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.StaxDriver;
-import com.thoughtworks.xstream.security.AnyTypePermission;
+import com.thoughtworks.xstream.security.NoTypePermission;
+import com.thoughtworks.xstream.security.NullPermission;
+import com.thoughtworks.xstream.security.PrimitiveTypePermission;
 import com.timestored.StringUtils;
 import com.timestored.kdb.KdbConnection;
 import com.timestored.rayforce.RayConnection;
@@ -116,7 +118,11 @@ public class ConnectionManager implements AutoCloseable {
 	private String prefKey;
 
 	static {
-		xstream.addPermission(AnyTypePermission.ANY);
+		xstream.addPermission(NoTypePermission.NONE);
+		xstream.addPermission(NullPermission.NULL);
+		xstream.addPermission(PrimitiveTypePermission.PRIMITIVES);
+		xstream.allowTypes(new Class<?>[] {
+				ArrayList.class, Integer.class, String.class, JdbcTypes.class, ServerConfigDTO.class });
 		xstream.processAnnotations(ServerConfigDTO.class);
 	}
 	
@@ -1142,4 +1148,3 @@ public class ConnectionManager implements AutoCloseable {
 	}
 
 }
-
