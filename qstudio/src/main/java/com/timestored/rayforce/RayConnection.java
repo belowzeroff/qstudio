@@ -26,14 +26,14 @@ import kx.c.KException;
 
 /**
  * A connection to a RayforceDB server - the Rayforce counterpart of
- * {@link com.timestored.kdb.KdbConnection}, including its retry-once-then-give-up
- * behaviour so a server restart doesn't require the user to reconnect by hand.
+ * {@link com.timestored.kdb.KdbConnection}. A dropped connection is restored for
+ * the next query, but an in-flight query is never replayed because it may already
+ * have mutated server state.
  */
 public class RayConnection implements NativeConnection {
 
 	private static final Logger LOG = Logger.getLogger(RayConnection.class.getName());
 
-	private static final int RETRIES = 1;
 	private static final int CONNECT_TIMEOUT_MILLIS = 10000;
 
 	private final String host;
@@ -65,26 +65,24 @@ public class RayConnection implements NativeConnection {
 			throw new IllegalStateException("we were closed");
 		}
 
-		for (int r = 0; ; r++) {
+		try {
+			RayIpc.Result result = ipc.query(query);
+			lastConsoleOutput = result.getConsole();
+			return result.getValue();
+		} catch (IOException e) {
+			lastConsoleOutput = "";
+			IOException uncertain = new IOException("Rayforce connection lost while executing a query; "
+					+ "the query may have completed and was not retried", e);
 			try {
-				RayIpc.Result result = ipc.query(query);
-				lastConsoleOutput = result.getConsole();
-				return result.getValue();
-			} catch (IOException e) {
-				// A dropped socket is worth one silent retry; a KException is the
-				// server answering, so it propagates untouched.
-				lastConsoleOutput = "";
-				if (r >= RETRIES) {
-					LOG.info("giving up reconnecting");
-					throw e;
-				}
-				try {
-					reconnect();
-				} catch (IOException io) { /* retry loop reports the original */
-				} catch (KException ke) {
-					throw ke;
-				}
+				// Restore the connection for the next query, but never replay this one:
+				// a mutating request may already have completed on the server.
+				reconnect();
+			} catch (IOException reconnectFailure) {
+				uncertain.addSuppressed(reconnectFailure);
+			} catch (KException reconnectFailure) {
+				uncertain.addSuppressed(reconnectFailure);
 			}
+			throw uncertain;
 		}
 	}
 
