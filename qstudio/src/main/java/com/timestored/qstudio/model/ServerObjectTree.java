@@ -280,6 +280,8 @@ public class ServerObjectTree {
 		case "TIME": return (short) CAtomTypes.TIME_LIST.getTypeNum();
 		case "timestamp": return (short) CAtomTypes.TIMESTAMP.getTypeNum();
 		case "TIMESTAMP": return (short) CAtomTypes.TIMESTAMP_LIST.getTypeNum();
+		case "timespan": return (short) CAtomTypes.TIMESPAN.getTypeNum();
+		case "TIMESPAN": return (short) CAtomTypes.TIMESPAN_LIST.getTypeNum();
 		case "guid": return (short) CAtomTypes.GUID.getTypeNum();
 		case "GUID": return (short) CAtomTypes.GUID_LIST.getTypeNum();
 		// Rayforce strings are their own type; both they and symbols reach Java as

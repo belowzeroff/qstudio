@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import kx.c.Flip;
 import kx.c.KException;
+import kx.c.Timespan;
 
 /**
  * Drives {@link RayIpc} against a socket that speaks the Rayforce wire format by
@@ -162,6 +163,23 @@ public class RayIpcTest {
 		ipc.close();
 		assertEquals(LocalDate.of(2024, 1, 15), d[0]);
 		assertEquals(LocalDate.of(2024, 1, 16), d[1]);
+	}
+
+	@Test public void decodesTimespanAtomsAndVectors() throws Exception {
+		server = new FakeServer(false, null, frame(list(
+				timespanAtom(1_000_000_000L, false),
+				timespanAtom(123L, true),
+				timespanVec(0L, -1L, Long.MIN_VALUE)), false));
+
+		RayIpc ipc = connect(null, null);
+		Object[] r = (Object[]) ipc.query("(list 0D00:00:01.000000000 0Nn (as 'TIMESPAN [0 -1 0Nl]))").getValue();
+		ipc.close();
+
+		assertEquals(new Timespan(1_000_000_000L), r[0]);
+		assertEquals(new Timespan(Long.MIN_VALUE), r[1]);
+		assertArrayEquals(new Timespan[] {
+				new Timespan(0L), new Timespan(-1L), new Timespan(Long.MIN_VALUE)
+		}, (Timespan[]) r[2]);
 	}
 
 	/** A typed null still carries its value bytes; skipping them desyncs the frame. */
@@ -394,6 +412,14 @@ public class RayIpcTest {
 		return o.toByteArray();
 	}
 
+	private static byte[] timespanAtom(long v, boolean typedNull) throws IOException {
+		ByteArrayOutputStream o = new ByteArrayOutputStream();
+		o.write((byte) -16);
+		o.write(typedNull ? 1 : 0);
+		o.write(le64(v));
+		return o.toByteArray();
+	}
+
 	private static byte[] u8Atom(int v, boolean typedNull) throws IOException {
 		ByteArrayOutputStream o = new ByteArrayOutputStream();
 		o.write((byte) -2);
@@ -426,6 +452,17 @@ public class RayIpcTest {
 	private static byte[] i64Vec(long... vals) throws IOException {
 		ByteArrayOutputStream o = new ByteArrayOutputStream();
 		o.write(5);
+		o.write(0);
+		o.write(le64(vals.length));
+		for (long v : vals) {
+			o.write(le64(v));
+		}
+		return o.toByteArray();
+	}
+
+	private static byte[] timespanVec(long... vals) throws IOException {
+		ByteArrayOutputStream o = new ByteArrayOutputStream();
+		o.write(16);
 		o.write(0);
 		o.write(le64(vals.length));
 		for (long v : vals) {

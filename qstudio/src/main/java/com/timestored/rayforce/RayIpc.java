@@ -36,6 +36,7 @@ import kx.c;
 import kx.c.Dict;
 import kx.c.Flip;
 import kx.c.KException;
+import kx.c.Timespan;
 
 /**
  * Client for the RayforceDB IPC protocol - the equivalent of {@link kx.c} for kdb.
@@ -85,6 +86,7 @@ public class RayIpc {
 	private static final byte T_GUID = 11;
 	private static final byte T_SYM = 12;
 	private static final byte T_STR = 13;
+	private static final byte T_TIMESPAN = 16;
 	private static final byte T_TABLE = 98;
 	private static final byte T_DICT = 99;
 	private static final byte T_LAMBDA = 100;
@@ -455,6 +457,10 @@ public class RayIpc {
 			long v = b.getLong();
 			return toTimestamp(isNull ? NULL_I64 : v);
 		}
+		case T_TIMESPAN: {
+			long v = b.getLong();
+			return new Timespan(isNull ? NULL_I64 : v);
+		}
 		case T_GUID:
 			return readGuid(b);
 		case T_SYM:
@@ -570,6 +576,13 @@ public class RayIpc {
 			Instant[] r = new Instant[n];
 			for (int i = 0; i < n; i++) {
 				r[i] = toTimestamp(b.getLong());
+			}
+			return r;
+		}
+		case T_TIMESPAN: {
+			Timespan[] r = new Timespan[n];
+			for (int i = 0; i < n; i++) {
+				r[i] = new Timespan(b.getLong());
 			}
 			return r;
 		}
